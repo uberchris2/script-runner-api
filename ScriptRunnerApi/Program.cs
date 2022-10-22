@@ -1,3 +1,5 @@
+using System.Management.Automation;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
@@ -13,8 +15,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/endpoint", () =>
+app.MapGet("/endpoint", async () =>
 {
+    using (var ps = PowerShell.Create())
+    {
+        ps.AddScript("ping google.com");
+        //ps.AddParameters(scriptParameters);
+        var pipelineObjects = await ps.InvokeAsync().ConfigureAwait(false);
+        foreach (var item in pipelineObjects)
+        {
+            Console.WriteLine(item.BaseObject.ToString());
+        }
+    }
     return "Hello World!";
 })
 .WithName("EndpointName");
