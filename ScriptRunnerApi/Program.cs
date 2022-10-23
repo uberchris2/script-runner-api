@@ -1,4 +1,6 @@
 using System.Management.Automation;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,20 +17,40 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/endpoint", async () =>
+app.MapGet("/runscript/{scriptName}", async (string scriptName) =>
 {
+    //TODO: add logging
+    var connectionString = app.Configuration["ScriptContainer:ConnectionString"];
+    var containerName = app.Configuration["ScriptContainer:Container"];
+    var scriptContents = await GetScriptFromBlob(connectionString, containerName, scriptName);
+
+    string outputString = "No output";
     using (var ps = PowerShell.Create())
     {
-        ps.AddScript("ping google.com");
+        ps.AddScript(scriptContents);
+        //TODO: allow PS parameters 
         //ps.AddParameters(scriptParameters);
         var pipelineObjects = await ps.InvokeAsync().ConfigureAwait(false);
-        foreach (var item in pipelineObjects)
-        {
-            Console.WriteLine(item.BaseObject.ToString());
-        }
+        // foreach (var item in pipelineObjects)
+        // {
+        //     Console.WriteLine(item.BaseObject.ToString());
+        // }
+        outputString = string.Join(
+            Environment.NewLine, 
+            pipelineObjects.Select(x => x.BaseObject.ToString()).ToArray());
     }
-    return "Hello World!";
+    return outputString;
 })
-.WithName("EndpointName");
+.WithName("RunScript");
 
 app.Run();
+
+static async Task<string> GetScriptFromBlob(string connectionString, string containerName, string scriptName)
+{
+
+    var blobServiceClient = new BlobServiceClient(connectionString);
+    var container = blobServiceClient.GetBlobContainerClient(containerName);
+    var blobClient = container.GetBlobClient(scriptName);
+    BlobDownloadResult downloadResult = await blobClient.DownloadContentAsync();
+    return downloadResult.Content.ToString();
+}
