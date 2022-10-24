@@ -20,6 +20,7 @@ app.UseHttpsRedirection();
 app.MapGet("/runscript/{scriptName}", async (string scriptName) =>
 {
     //TODO: add logging
+    //TODO: add API key auth
     var connectionString = app.Configuration["ScriptContainer:ConnectionString"];
     var containerName = app.Configuration["ScriptContainer:Container"];
     var scriptContents = await GetScriptFromBlob(connectionString, containerName, scriptName);
